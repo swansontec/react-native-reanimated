@@ -42,6 +42,7 @@ import { buildWorkletString } from './workletStringCode';
 import { globals } from './globals';
 import type { ReanimatedPluginPass, WorkletizableFunction } from './types';
 import { isRelease } from './utils';
+import { appendFileSync } from 'fs';
 
 const REAL_VERSION = require('../../package.json').version;
 const MOCK_VERSION = 'x.y.z';
@@ -103,6 +104,24 @@ export function makeWorkletFactory(
   assert(transformed.ast, '[Reanimated] `transformed.ast` is undefined.');
 
   const variables = makeArrayFromCapturedBindings(transformed.ast, fun);
+
+  const importVariables = variables.reduce((acc, variable) => {
+    const binding = fun.scope.getBinding(variable.name);
+    if (
+      !binding ||
+      !binding.path.isImportSpecifier() ||
+      !binding.path.parentPath.isImportDeclaration()
+    ) {
+      return acc;
+    }
+    const libraryName = binding.path.parentPath.node.source.value;
+    // @ts-ignore
+    // acc.push(state.filename + ' ' + variable.name + '\n');
+    acc += libraryName + ' ' + variable.name + '\n';
+    return acc;
+  }, '');
+
+  // appendFileSync('_reanimated_paths.js', importVariables, 'utf8');
 
   const functionName = makeWorkletName(fun);
   const functionIdentifier = identifier(functionName);
@@ -353,6 +372,8 @@ function makeArrayFromCapturedBindings(
         return;
       }
       const name = path.node.name;
+      const binding = path.scope.getOwnBinding(name);
+
       // if the function is named and was added to globals we don't want to add it to closure
       // hence we check if identifier has that name
       if (globals.has(name)) {

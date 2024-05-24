@@ -215,13 +215,13 @@ var require_workletStringCode = __commonJS({
       __setModuleDefault(result, mod);
       return result;
     };
-    var __importDefault = exports2 && exports2.__importDefault || function(mod) {
+    var __importDefault2 = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildWorkletString = void 0;
     var core_1 = require("@babel/core");
-    var generator_1 = __importDefault(require("@babel/generator"));
+    var generator_1 = __importDefault2(require("@babel/generator"));
     var types_12 = require("@babel/types");
     var assert_1 = require("assert");
     var convertSourceMap = __importStar(require("convert-source-map"));
@@ -309,13 +309,13 @@ var require_workletStringCode = __commonJS({
 var require_workletFactory = __commonJS({
   "lib/workletFactory.js"(exports2) {
     "use strict";
-    var __importDefault = exports2 && exports2.__importDefault || function(mod) {
+    var __importDefault2 = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.makeWorkletFactory = void 0;
     var core_1 = require("@babel/core");
-    var generator_1 = __importDefault(require("@babel/generator"));
+    var generator_1 = __importDefault2(require("@babel/generator"));
     var types_12 = require("@babel/types");
     var assert_1 = require("assert");
     var path_1 = require("path");
@@ -357,6 +357,15 @@ var require_workletFactory = __commonJS({
       (0, assert_1.strict)(transformed, "[Reanimated] `transformed` is undefined.");
       (0, assert_1.strict)(transformed.ast, "[Reanimated] `transformed.ast` is undefined.");
       const variables = makeArrayFromCapturedBindings(transformed.ast, fun);
+      const importVariables = variables.reduce((acc, variable) => {
+        const binding = fun.scope.getBinding(variable.name);
+        if (!binding || !binding.path.isImportSpecifier() || !binding.path.parentPath.isImportDeclaration()) {
+          return acc;
+        }
+        const libraryName = binding.path.parentPath.node.source.value;
+        acc += libraryName + " " + variable.name + "\n";
+        return acc;
+      }, "");
       const functionName = makeWorkletName(fun);
       const functionIdentifier = (0, types_12.identifier)(functionName);
       const clone = (0, types_12.cloneNode)(fun.node);
@@ -471,6 +480,7 @@ var require_workletFactory = __commonJS({
             return;
           }
           const name = path.node.name;
+          const binding = path.scope.getOwnBinding(name);
           if (globals_12.globals.has(name)) {
             return;
           }
@@ -1014,6 +1024,9 @@ var require_webOptimization = __commonJS({
 });
 
 // lib/plugin.js
+var __importDefault = exports && exports.__importDefault || function(mod) {
+  return mod && mod.__esModule ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 var autoworkletization_1 = require_autoworkletization();
 var types_1 = require_types();
@@ -1022,6 +1035,8 @@ var inlineStylesWarning_1 = require_inlineStylesWarning();
 var utils_1 = require_utils();
 var globals_1 = require_globals();
 var webOptimization_1 = require_webOptimization();
+var fs_1 = __importDefault(require("fs"));
+var readNames = "";
 module.exports = function() {
   function runWithTaggedExceptions(fun) {
     try {
@@ -1035,6 +1050,7 @@ module.exports = function() {
       runWithTaggedExceptions(() => {
         (0, globals_1.initializeGlobals)();
         utils_1.addCustomGlobals.call(this);
+        readNames = fs_1.default.readFileSync("_reanimated_paths.js", "utf8").split("\n").map((str) => str.split(" "));
       });
     },
     visitor: {
@@ -1052,6 +1068,9 @@ module.exports = function() {
         enter(path, state) {
           runWithTaggedExceptions(() => {
             (0, workletSubstitution_1.processIfWithWorkletDirective)(path, state) || (0, autoworkletization_1.processIfAutoworkletizableCallback)(path, state);
+            if (path.isFunctionDeclaration() && state.filename.includes(readNames)) {
+              (0, workletSubstitution_1.processWorklet)(path, state);
+            }
           });
         }
       },

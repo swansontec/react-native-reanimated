@@ -10,6 +10,9 @@ export function makeWorkletFactoryCall(
 ): CallExpression {
   const workletFactory = makeWorkletFactory(path, state);
 
+  // @ts-ignore
+  // workletFactory.isWorkletized = true;
+
   const workletFactoryCall = callExpression(workletFactory, []);
 
   addStackTraceDataToWorkletFactory(path, workletFactoryCall);

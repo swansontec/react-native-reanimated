@@ -70,6 +70,8 @@ export function processWorklet(
   const workletFactoryCall = makeWorkletFactoryCall(path, state);
 
   substituteWithWorkletFactoryCall(path, workletFactoryCall);
+  // @ts-ignore
+  // path.node.isWorkletized = true;
 }
 
 function hasWorkletDirective(directives: Directive[]): boolean {
