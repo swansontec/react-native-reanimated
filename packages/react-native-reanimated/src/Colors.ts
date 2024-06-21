@@ -522,7 +522,11 @@ export const rgbaColor = (
 ): number | string => {
   'worklet';
   if (IS_WEB || !_WORKLET) {
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    return (
+      `rgba(${r}, ${g}, ${b}, ${alpha})`
+        // Replace tiny values like 1.234e-11 with 0:
+        .replace(/[.0-9]+e-[0-9]+/g, '0')
+    );
   }
 
   const c =
